@@ -1,11 +1,19 @@
-_GAME_FULLSCREEN = False
-_SKIP_INTRO = True
+import random
+
+_GAME_FULLSCREEN = True
+_SKIP_INTRO = False
 _HOLDING_READY = False
 _OBJECTS = []
 _NO_BEANS = 9
 _BEANS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+_DECISION_MUSIC_COOLDOWN = 0
+_BEANS_REMOVED = 0
+_LAST_WIZARD_CALL = 0
+_WIZARD_SUMMONED = False
+_BEAN_OR_NO_BEAN = False
 
 import pygame as p
+from pygame import mixer as m
 import moviepy.editor as e
 
 if _GAME_FULLSCREEN:
@@ -52,11 +60,12 @@ class Button:
             else:
                 self.alreadyPressed = False
 
-        self.buttonSurface.blit(self.buttonSurf, [
-            self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
-            self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
-        ])
-        screen.blit(self.buttonSurface, self.buttonRect)
+        if not _HOLDING_READY or _BEAN_OR_NO_BEAN:
+            self.buttonSurface.blit(self.buttonSurf, [
+                self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
+                self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
+            ])
+            screen.blit(self.buttonSurface, self.buttonRect)
 
 class AmountSlider:
     def __init__(self, x, y, width, height, amount, bean, iteration):
@@ -78,10 +87,18 @@ class AmountSlider:
         _OBJECTS.append(self)
 
     def process(self):
-        mouse_pos = p.mouse.get_pos()
-        if self.sliderRect.collidepoint(mouse_pos):
-            if p.mouse.get_pressed(num_buttons=3)[0]:
-                self.pressed = True
+        global _DECISION_MUSIC_COOLDOWN, _BEANS_REMOVED
+        if not self.pressed and not _BEAN_OR_NO_BEAN and not _WIZARD_SUMMONED:
+            mouse_pos = p.mouse.get_pos()
+            if self.sliderRect.collidepoint(mouse_pos):
+                if p.mouse.get_pressed(num_buttons=3)[0]:
+                    self.pressed = True
+                    if self.iteration == _BEANS[len(_BEANS)-1]:
+                        play_sound_effect('assets/big_beans_gone.mp3')
+                    else:
+                        play_sound_effect('assets/box_open.mp3')
+                    _DECISION_MUSIC_COOLDOWN = 480
+                    _BEANS_REMOVED += 1
 
         if not self.pressed:
             screen.blit(self.sliderImage, self.sliderRect)
@@ -122,23 +139,69 @@ def holding_screen():
 
     _OBJECTS.clear()
 
+def decision_music():
+    global _DECISION_MUSIC_COOLDOWN
+    if not _WIZARD_SUMMONED and not _BEAN_OR_NO_BEAN:
+        if _DECISION_MUSIC_COOLDOWN > 0:
+            _DECISION_MUSIC_COOLDOWN -= 1
+        if _DECISION_MUSIC_COOLDOWN == 1:
+            m.music.stop()
+            m.music.load("assets/decision_" + str(random.randint(1,3)) + ".mp3")
+            m.music.set_volume(0.4)
+            m.music.play()
+
+def play_sound_effect(sound_effect, loop = 0):
+    m.music.stop()
+    m.music.load(sound_effect)
+    m.music.set_volume(1)
+    m.music.play(loop)
+
+def deal():
+    global _BEAN_OR_NO_BEAN
+    _BEAN_OR_NO_BEAN = False
+    play_sound_effect("assets/deal.mp3")
+
+def no_deal():
+    global _BEAN_OR_NO_BEAN
+    _BEAN_OR_NO_BEAN = False
+
+def wizard_rings():
+    global _BEANS_REMOVED, _LAST_WIZARD_CALL, _DECISION_MUSIC_COOLDOWN, _WIZARD_SUMMONED, _BEAN_OR_NO_BEAN
+    if not _BEANS_REMOVED == _LAST_WIZARD_CALL:
+        if (_BEANS_REMOVED % 3 == 0) and (_DECISION_MUSIC_COOLDOWN < 50):
+            _LAST_WIZARD_CALL = _BEANS_REMOVED
+            play_sound_effect('assets/phone_ring.mp3')
+            m.music.set_volume(1)
+            _WIZARD_SUMMONED = True
+
+    if _WIZARD_SUMMONED and not m.music.get_busy():
+        play_sound_effect('assets/bean_wizard.mp3', -1)
+        m.music.set_volume(0.7)
+        _WIZARD_SUMMONED = False
+        _BEAN_OR_NO_BEAN = True
+        _DECISION_MUSIC_COOLDOWN = 400
+
 def game_loop():
     clock = p.time.Clock()
 
+    sliderOffset = (screen.get_height() - (_NO_BEANS * 100)) / 2
     beanCounter = 0
     for bean in _BEANS:
-        AmountSlider(screen.get_width()-375, beanCounter * 100, 375, 87, bean, "red", beanCounter)
-        print("Created Red Slider " + bean)
+        AmountSlider(screen.get_width()-375, sliderOffset + (beanCounter * 100), 375, 87, bean, "red", beanCounter)
         beanCounter += 1
 
     beanCounter = 0
     while not (beanCounter == _NO_BEANS):
-        AmountSlider(0, beanCounter * 100, 375, 87, "NO", "blue", beanCounter)
-        print("Created Blue Slider " + str(beanCounter))
+        AmountSlider(0, sliderOffset + (beanCounter * 100), 375, 87, "NO", "blue", beanCounter)
         beanCounter += 1
+
+
+    Button(screen.get_width() / 2 - 300, screen.get_height() / 4, 200, 100, 'BEAN', deal)
+    Button(screen.get_width() / 2 + 100, screen.get_height() / 4, 200, 100, 'NO BEAN', no_deal)
 
     bg_image = p.image.load('assets/background.jpg')
     logo = p.image.load('assets/logo.png')
+    play_sound_effect('assets/ambience.mp3')
 
     running = True
     while running:
@@ -152,12 +215,17 @@ def game_loop():
         for object in _OBJECTS:
             object.process()
 
+        decision_music()
+        wizard_rings()
+
         p.display.flip()
 
         clock.tick(60)
 
 def game_init():
     p.init()
+    m.init()
+
     holding_screen()
 
     if not _SKIP_INTRO:
