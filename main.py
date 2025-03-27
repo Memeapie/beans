@@ -1,7 +1,7 @@
 import random
 
-_GAME_FULLSCREEN = True
-_SKIP_INTRO = False
+_GAME_FULLSCREEN = False
+_SKIP_INTRO = True
 _HOLDING_READY = False
 _OBJECTS = []
 _NO_BEANS = 9
@@ -21,7 +21,7 @@ if _GAME_FULLSCREEN:
 else:
     screen = p.display.set_mode((1920, 1080), p.RESIZABLE)
 
-font = p.font.SysFont('Arial', 20)
+font = p.font.SysFont('Arial Bold', 40)
 
 class Button:
     def __init__(self, x, y, width, height, button_text='Button', onclick_function=None, one_press=False):
@@ -77,6 +77,8 @@ class AmountSlider:
         self.bean = bean
         self.pressed = False
         self.iteration = str(iteration+1)
+        self.animationTimer = -1
+        self.state = "hiya"
 
         self.sliderImage = p.image.load("assets/" + self.bean + "-" + self.iteration + ".png")
         self.sliderRect = p.Rect(self.x, self.y, self.width, self.height)
@@ -85,6 +87,12 @@ class AmountSlider:
         self.sliderTextRect = p.Rect(self.x + (self.width / 2) - (self.fontSizeWidth / 2), self.y + (self.height / 2) - (self.fontSizeHeight / 2), self.width, self.height)
 
         _OBJECTS.append(self)
+
+    def update(self):
+        self.sliderRect = p.Rect(self.x, self.y, self.width, self.height)
+        self.sliderText = font.render(self.amount + " BEAN", True, (255, 255, 255))
+        self.fontSizeWidth, self.fontSizeHeight = font.size(self.amount + " BEAN")
+        self.sliderTextRect = p.Rect(self.x + (self.width / 2) - (self.fontSizeWidth / 2), self.y + (self.height / 2) - (self.fontSizeHeight / 2), self.width, self.height)
 
     def process(self):
         global _DECISION_MUSIC_COOLDOWN, _BEANS_REMOVED
@@ -97,10 +105,30 @@ class AmountSlider:
                         play_sound_effect('assets/big_beans_gone.mp3')
                     else:
                         play_sound_effect('assets/box_open.mp3')
-                    _DECISION_MUSIC_COOLDOWN = 480
-                    _BEANS_REMOVED += 1
+                    self.animationTimer = 200
+                    self.state = "bye bye"
 
-        if not self.pressed:
+        if self.animationTimer > 0 and self.state == "bye bye":
+            self.animationTimer -= 1
+            if self.animationTimer == 0:
+                play_sound_effect('assets/woosh.mp3')
+                self.state = "woosh"
+                self.animationTimer = 100
+
+        if self.animationTimer > 0 and self.state == "woosh":
+            self.animationTimer -= 1
+            if self.x < (screen.get_width() / 2):
+                self.x -= 8
+            else:
+                self.x += 8
+            self.update()
+
+            if self.animationTimer == 0:
+                self.state = "gone"
+                _DECISION_MUSIC_COOLDOWN = 480
+                _BEANS_REMOVED += 1
+
+        if not self.state == "gone":
             screen.blit(self.sliderImage, self.sliderRect)
             screen.blit(self.sliderText, self.sliderTextRect)
 
