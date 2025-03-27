@@ -2,6 +2,8 @@ _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
 _HOLDING_READY = False
 _OBJECTS = []
+_NO_BEANS = 9
+_BEANS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 import pygame as p
 import moviepy.editor as e
@@ -12,9 +14,6 @@ else:
     screen = p.display.set_mode((1920, 1080), p.RESIZABLE)
 
 font = p.font.SysFont('Arial', 20)
-
-def test_func():
-    print('Button Pressed')
 
 class Button:
     def __init__(self, x, y, width, height, button_text='Button', onclick_function=None, one_press=False):
@@ -59,6 +58,37 @@ class Button:
         ])
         screen.blit(self.buttonSurface, self.buttonRect)
 
+class AmountSlider:
+    def __init__(self, x, y, width, height, amount, bean, iteration):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.amount = amount
+        self.bean = bean
+        self.pressed = False
+        self.iteration = str(iteration+1)
+
+        self.sliderImage = p.image.load("assets/" + self.bean + "-" + self.iteration + ".png")
+        self.sliderRect = p.Rect(self.x, self.y, self.width, self.height)
+        self.sliderText = font.render(self.amount + " BEAN", True, (255, 255, 255))
+        self.fontSizeWidth, self.fontSizeHeight = font.size(self.amount + " BEAN")
+        self.sliderTextRect = p.Rect(self.x + (self.width / 2) - (self.fontSizeWidth / 2), self.y + (self.height / 2) - (self.fontSizeHeight / 2), self.width, self.height)
+
+        _OBJECTS.append(self)
+
+    def process(self):
+        mouse_pos = p.mouse.get_pos()
+        if self.sliderRect.collidepoint(mouse_pos):
+            if p.mouse.get_pressed(num_buttons=3)[0]:
+                self.pressed = True
+
+        if not self.pressed:
+            screen.blit(self.sliderImage, self.sliderRect)
+            screen.blit(self.sliderText, self.sliderTextRect)
+
+
+
 def intro():
     clip = e.VideoFileClip('assets/intro_video.mp4')
 
@@ -95,8 +125,18 @@ def holding_screen():
 def game_loop():
     clock = p.time.Clock()
 
-    Button(30, 30, 400, 100, 'Button One (onePress)', test_func)
-    Button(30, 140, 400, 100, 'Button Two (multiPress)', test_func, True)
+    beanCounter = 0
+    for bean in _BEANS:
+        AmountSlider(screen.get_width()-375, beanCounter * 100, 375, 87, bean, "red", beanCounter)
+        print("Created Red Slider " + bean)
+        beanCounter += 1
+
+    beanCounter = 0
+    while not (beanCounter == _NO_BEANS):
+        AmountSlider(0, beanCounter * 100, 375, 87, "NO", "blue", beanCounter)
+        print("Created Blue Slider " + str(beanCounter))
+        beanCounter += 1
+
     bg_image = p.image.load('assets/background.jpg')
     logo = p.image.load('assets/logo.png')
 
