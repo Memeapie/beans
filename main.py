@@ -97,6 +97,8 @@ def game_loop():
 
     Button(30, 30, 400, 100, 'Button One (onePress)', test_func)
     Button(30, 140, 400, 100, 'Button Two (multiPress)', test_func, True)
+    bg_image = p.image.load('assets/background.jpg')
+    logo = p.image.load('assets/logo.png')
 
     running = True
     while running:
@@ -104,7 +106,8 @@ def game_loop():
             if event.type == p.QUIT:
                 running = False
 
-        screen.fill("green")
+        screen.blit(p.transform.scale(bg_image, (screen.get_width(), screen.get_height())), (0, 0))
+        screen.blit(logo, ((screen.get_width() / 2) - (logo.get_width() / 2), (screen.get_height() / 2) - (logo.get_height() / 4)))
 
         for object in _OBJECTS:
             object.process()
