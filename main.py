@@ -1,6 +1,7 @@
 _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
-objects = []
+_HOLDING_READY = False
+_OBJECTS = []
 
 import pygame as p
 import moviepy.editor as e
@@ -10,7 +11,7 @@ if _GAME_FULLSCREEN:
 else:
     screen = p.display.set_mode((1920, 1080), p.RESIZABLE)
 
-font = p.font.SysFont('Arial', 40)
+font = p.font.SysFont('Arial', 20)
 
 def test_func():
     print('Button Pressed')
@@ -26,15 +27,16 @@ class Button:
         self.alreadyPressed = False
 
         self.fillColors = {
-            'normal': '#ffffff',
-            'hover': '#666666',
-            'pressed': '#333333',
+            'normal': '#5adbb5',
+            'hover': '#5dbea3',
+            'pressed': '#33b249',
         }
 
         self.buttonSurface = p.Surface((self.width, self.height))
         self.buttonRect = p.Rect(self.x, self.y, self.width, self.height)
         self.buttonSurf = font.render(button_text, True, (20, 20, 20))
-        objects.append(self)
+
+        _OBJECTS.append(self)
 
     def process(self):
         mouse_pos = p.mouse.get_pos()
@@ -65,6 +67,31 @@ def intro():
     else:
         clip.preview()
 
+def ready_up():
+    global _HOLDING_READY
+    _HOLDING_READY = True
+
+def holding_screen():
+    global _HOLDING_READY
+    clock = p.time.Clock()
+
+    Button(screen.get_width() / 2 - 100, screen.get_height() / 2 - 50, 200, 100, 'Ready!', ready_up)
+
+    while not _HOLDING_READY:
+        for event in p.event.get():
+            if event.type == p.QUIT:
+                _HOLDING_READY = False
+
+        screen.fill("grey")
+
+        for object in _OBJECTS:
+            object.process()
+
+        p.display.flip()
+        clock.tick(60)
+
+    _OBJECTS.clear()
+
 def game_loop():
     clock = p.time.Clock()
 
@@ -79,7 +106,7 @@ def game_loop():
 
         screen.fill("green")
 
-        for object in objects:
+        for object in _OBJECTS:
             object.process()
 
         p.display.flip()
@@ -88,6 +115,8 @@ def game_loop():
 
 def game_init():
     p.init()
+    holding_screen()
+
     if not _SKIP_INTRO:
         intro()
 
