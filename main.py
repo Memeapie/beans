@@ -1,5 +1,3 @@
-import random
-
 _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
 _HOLDING_READY = False
@@ -15,6 +13,7 @@ _BEAN_OR_NO_BEAN = False
 import pygame as p
 from pygame import mixer as m
 import moviepy.editor as e
+import random as rnd
 
 if _GAME_FULLSCREEN:
     screen = p.display.set_mode((1920, 1080), p.FULLSCREEN)
@@ -22,6 +21,44 @@ else:
     screen = p.display.set_mode((1920, 1080), p.RESIZABLE)
 
 font = p.font.SysFont('Arial Bold', 40)
+
+class ParticleEmitter:
+    def __init__(self, maxSpeed, reducer):
+        self.particles = []
+        self.maxSpeed = maxSpeed
+        self.reducer = reducer
+        self.particleColours = [(250, 250, 210), (238, 232, 170), (240, 230, 140), (218, 165, 32), (255, 215, 0), (255, 165, 0), (255, 140, 0), (205, 133, 63), (210, 105, 30), (139, 69, 19), (160, 82, 45)]
+
+    def emit(self):
+        if self.particles:
+            self.delete_particles()
+            for particle in self.particles:
+                particle[0][1] += particle[2][0]
+                particle[0][0] += particle[2][1]
+                particle[1] -= self.reducer
+                a = int(particle[1] * 15)
+                if a < 0:
+                    a = 0
+
+                surf = p.Surface((30,30), p.SRCALPHA, 32)
+                p.draw.circle(surf, p.Color(particle[3]), [15,15], int(particle[1]))
+                surf.set_alpha(a)
+                screen.blit(surf, particle[0])
+
+    def add_particles(self):
+        pos_x = rnd.randint(100, screen.get_width() - 100)
+        pos_y = rnd.randint(100, screen.get_height() - 100)
+        if pos_x == 0 and pos_y == 0:
+            pos_x = 1
+        radius = rnd.randint(3, 15)
+        particle_circle = [[pos_x,pos_y],radius,
+                           [rnd.randint(-self.maxSpeed,self.maxSpeed),rnd.randint(-self.maxSpeed,self.maxSpeed)],
+                           self.particleColours[rnd.randint(0,len(self.particleColours)-1)]]
+        self.particles.append(particle_circle)
+
+    def delete_particles(self):
+        particle_copy = [particle for particle in self.particles if particle[1] > 0]
+        self.particles = particle_copy
 
 class Button:
     def __init__(self, x, y, width, height, button_text='Button', onclick_function=None, one_press=False):
@@ -150,12 +187,20 @@ def holding_screen():
 
     Button(screen.get_width() / 2 - 100, screen.get_height() / 2 - 50, 200, 100, 'Ready!', ready_up)
 
+    particles = ParticleEmitter(2, 0.05)
+    particleEvent = p.USEREVENT + 1
+    p.time.set_timer(particleEvent, 40)
+
     while not _HOLDING_READY:
+        screen.fill("grey")
+
         for event in p.event.get():
             if event.type == p.QUIT:
-                _HOLDING_READY = False
+                quit()
+            if event.type == particleEvent:
+                particles.add_particles()
 
-        screen.fill("grey")
+        particles.emit()
 
         for object in _OBJECTS:
             object.process()
@@ -172,7 +217,7 @@ def decision_music():
             _DECISION_MUSIC_COOLDOWN -= 1
         if _DECISION_MUSIC_COOLDOWN == 1:
             m.music.stop()
-            m.music.load("assets/decision_" + str(random.randint(1,3)) + ".mp3")
+            m.music.load("assets/decision_" + str(rnd.randint(1,3)) + ".mp3")
             m.music.set_volume(0.4)
             m.music.play()
 
@@ -221,7 +266,6 @@ def game_loop():
         AmountSlider(0, sliderOffset + (beanCounter * 100), 375, 87, "NO", "blue", beanCounter)
         beanCounter += 1
 
-
     Button(screen.get_width() / 2 - 300, screen.get_height() / 4, 200, 100, 'BEAN', deal)
     Button(screen.get_width() / 2 + 100, screen.get_height() / 4, 200, 100, 'NO BEAN', no_deal)
 
@@ -229,14 +273,22 @@ def game_loop():
     logo = p.image.load('assets/logo.png')
     play_sound_effect('assets/ambience.mp3')
 
+    particles = ParticleEmitter(1, 0.1)
+    particleEvent = p.USEREVENT + 1
+    p.time.set_timer(particleEvent, 40)
+
     running = True
     while running:
         for event in p.event.get():
             if event.type == p.QUIT:
-                running = False
+                quit()
+            if event.type == particleEvent:
+                particles.add_particles()
 
         screen.blit(p.transform.scale(bg_image, (screen.get_width(), screen.get_height())), (0, 0))
         screen.blit(logo, ((screen.get_width() / 2) - (logo.get_width() / 2), (screen.get_height() / 2) - (logo.get_height() / 4)))
+
+        particles.emit()
 
         for object in _OBJECTS:
             object.process()
@@ -260,7 +312,5 @@ def game_init():
     game_loop()
     p.quit()
 
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     game_init()
