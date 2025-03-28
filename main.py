@@ -1,3 +1,5 @@
+from ctypes import windll
+
 _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
 _OBJECTS = []
@@ -21,6 +23,49 @@ else:
     screen = p.display.set_mode((1920, 1080), p.RESIZABLE)
 
 font = p.font.SysFont('Arial Bold', 40)
+
+class FadingBeanBox:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.x = -1000
+        self.y = 0
+        self.direction = 1
+        self.alpha = 100
+        self.image = p.image.load('assets/Logo-Large.png')
+
+        _OBJECTS.append(self)
+
+    def process(self):
+        self.x += self.direction
+
+        if self.x > (self.width / 2) and self.direction == 1:
+            self.alpha -= 1
+        if self.x < (screen.get_width() - self.width*2) and self.direction == -1:
+            self.alpha -= 1
+
+        if self.alpha == 0:
+            self.alpha = 100
+            if self.direction == 1:
+                self.direction = -1
+                self.x = screen.get_width() + 1000
+            elif self.direction == -1:
+                self.direction = 1
+                self.x = -1500
+
+        self.image.set_alpha(self.alpha)
+        screen.blit(self.image, (self.x, self.y))
+
+class BeanBox:
+    def __init__(self, x, y, width, height):
+        self.x = x - (width / 2)
+        self.y = y - (height / 2)
+        self.image = p.transform.scale(p.image.load('assets/Logo-Large.png'), (width, height))
+
+        _OBJECTS.append(self)
+
+    def process(self):
+        screen.blit(self.image, (self.x, self.y))
 
 class Background:
     def __init__(self):
@@ -64,7 +109,7 @@ class ParticleEmitter:
         pos_y = rnd.randint(100, screen.get_height() - 100)
         direction = [rnd.randint(-self.maxSpeed,self.maxSpeed),rnd.randint(-self.maxSpeed,self.maxSpeed)]
         if direction == [0,0]: direction = [1,1]
-        radius = rnd.randint(3, 15)
+        radius = rnd.randint(3, 12)
         particle_circle = [[pos_x,pos_y],radius,direction,self.colours[rnd.randint(0,len(self.colours)-1)]]
         self.particles.append(particle_circle)
 
@@ -241,6 +286,10 @@ def wizard_rings():
 
 def init_bean():
     global _GAME_STATE
+
+    FadingBeanBox(526, 526)
+    BeanBox(screen.get_width() / 2, screen.get_height() / 2, 256, 256)
+
     sliderOffset = (screen.get_height() - (_NO_BEANS * 100)) / 2
     beanCounter = 0
     for bean in _BEANS:
@@ -255,7 +304,7 @@ def init_bean():
     Button(screen.get_width() / 2 - 300, screen.get_height() / 4, 200, 100, 'BEAN', deal)
     Button(screen.get_width() / 2 + 100, screen.get_height() / 4, 200, 100, 'NO BEAN', no_deal)
 
-    play_sound_effect('assets/ambience.mp3')
+    play_sound_effect('assets/ambience.mp3', -1)
     _GAME_STATE = 'BEAN'
     game_loop(ParticleEmitter(1, 0.1))
 
@@ -265,7 +314,7 @@ def game_loop(
         background = Background()
 ):
     clock = p.time.Clock()
-    p.time.set_timer(particleEvent, 40)
+    p.time.set_timer(particleEvent, 20)
 
     gameState = _GAME_STATE
     while gameState == _GAME_STATE:
