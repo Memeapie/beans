@@ -1,5 +1,3 @@
-from ctypes import windll
-
 _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
 _OBJECTS = []
