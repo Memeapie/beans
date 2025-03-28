@@ -132,8 +132,6 @@ class AmountSlider:
             screen.blit(self.sliderImage, self.sliderRect)
             screen.blit(self.sliderText, self.sliderTextRect)
 
-
-
 def intro():
     clip = e.VideoFileClip('assets/intro_video.mp4')
 
