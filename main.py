@@ -1,6 +1,5 @@
 _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
-_HOLDING_READY = False
 _OBJECTS = []
 _NO_BEANS = 9
 _BEANS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
@@ -9,6 +8,7 @@ _BEANS_REMOVED = 0
 _LAST_WIZARD_CALL = 0
 _WIZARD_SUMMONED = False
 _BEAN_OR_NO_BEAN = False
+_GAME_STATE = 'HOLD'
 
 import pygame as p
 from pygame import mixer as m
@@ -22,41 +22,53 @@ else:
 
 font = p.font.SysFont('Arial Bold', 40)
 
+class Background:
+    def __init__(self):
+        self.circleColours = [(8,8,8), (16,16,16), (24,24,24), (32,32,32), (40,40,40), (48,48,48), (56,56,56), (64,64,64), (72,72,72), (80,80,80)]
+        self.surface = p.Surface(screen.get_size(), p.SRCALPHA, 32)
+        iterations = len(self.circleColours)
+        nextFrame = p.Surface(screen.get_size(), p.SRCALPHA, 32)
+        for colour in self.circleColours:
+            radius = ((screen.get_height() / len(self.circleColours)) * iterations)
+            p.draw.circle(nextFrame, colour, (screen.get_width() / 2, screen.get_height() / 2), radius)
+            iterations -= 1
+        self.surface = p.transform.box_blur(nextFrame, 15)
+
+    def process(self):
+        screen.fill('Black')
+        screen.blit(self.surface, (0,0))
+
 class ParticleEmitter:
     def __init__(self, maxSpeed, reducer):
         self.particles = []
         self.maxSpeed = maxSpeed
         self.reducer = reducer
-        self.particleColours = [(250, 250, 210), (238, 232, 170), (240, 230, 140), (218, 165, 32), (255, 215, 0), (255, 165, 0), (255, 140, 0), (205, 133, 63), (210, 105, 30), (139, 69, 19), (160, 82, 45)]
+        self.colours = [(250, 250, 210), (238, 232, 170), (240, 230, 140), (218, 165, 32), (255, 215, 0), (255, 165, 0), (255, 140, 0), (205, 133, 63), (210, 105, 30), (139, 69, 19), (160, 82, 45)]
 
-    def emit(self):
+    def process(self):
         if self.particles:
-            self.delete_particles()
+            self.clean()
             for particle in self.particles:
                 particle[0][1] += particle[2][0]
                 particle[0][0] += particle[2][1]
                 particle[1] -= self.reducer
                 a = int(particle[1] * 15)
-                if a < 0:
-                    a = 0
-
+                if a < 0: a = 0
                 surf = p.Surface((30,30), p.SRCALPHA, 32)
                 p.draw.circle(surf, p.Color(particle[3]), [15,15], int(particle[1]))
                 surf.set_alpha(a)
                 screen.blit(surf, particle[0])
 
-    def add_particles(self):
+    def spawn(self):
         pos_x = rnd.randint(100, screen.get_width() - 100)
         pos_y = rnd.randint(100, screen.get_height() - 100)
-        if pos_x == 0 and pos_y == 0:
-            pos_x = 1
+        direction = [rnd.randint(-self.maxSpeed,self.maxSpeed),rnd.randint(-self.maxSpeed,self.maxSpeed)]
+        if direction == [0,0]: direction = [1,1]
         radius = rnd.randint(3, 15)
-        particle_circle = [[pos_x,pos_y],radius,
-                           [rnd.randint(-self.maxSpeed,self.maxSpeed),rnd.randint(-self.maxSpeed,self.maxSpeed)],
-                           self.particleColours[rnd.randint(0,len(self.particleColours)-1)]]
+        particle_circle = [[pos_x,pos_y],radius,direction,self.colours[rnd.randint(0,len(self.colours)-1)]]
         self.particles.append(particle_circle)
 
-    def delete_particles(self):
+    def clean(self):
         particle_copy = [particle for particle in self.particles if particle[1] > 0]
         self.particles = particle_copy
 
@@ -97,7 +109,7 @@ class Button:
             else:
                 self.alreadyPressed = False
 
-        if not _HOLDING_READY or _BEAN_OR_NO_BEAN:
+        if (_GAME_STATE == 'HOLD') or _BEAN_OR_NO_BEAN:
             self.buttonSurface.blit(self.buttonSurf, [
                 self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
                 self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2
@@ -178,37 +190,12 @@ def intro():
         clip.preview()
 
 def ready_up():
-    global _HOLDING_READY
-    _HOLDING_READY = True
+    global _GAME_STATE
+    _GAME_STATE = 'BEAN'
 
-def holding_screen():
-    global _HOLDING_READY
-    clock = p.time.Clock()
-
+def init_holding():
     Button(screen.get_width() / 2 - 100, screen.get_height() / 2 - 50, 200, 100, 'Ready!', ready_up)
-
-    particles = ParticleEmitter(2, 0.05)
-    particleEvent = p.USEREVENT + 1
-    p.time.set_timer(particleEvent, 40)
-
-    while not _HOLDING_READY:
-        screen.fill("grey")
-
-        for event in p.event.get():
-            if event.type == p.QUIT:
-                quit()
-            if event.type == particleEvent:
-                particles.add_particles()
-
-        particles.emit()
-
-        for object in _OBJECTS:
-            object.process()
-
-        p.display.flip()
-        clock.tick(60)
-
-    _OBJECTS.clear()
+    game_loop()
 
 def decision_music():
     global _DECISION_MUSIC_COOLDOWN
@@ -252,13 +239,12 @@ def wizard_rings():
         _BEAN_OR_NO_BEAN = True
         _DECISION_MUSIC_COOLDOWN = 400
 
-def game_loop():
-    clock = p.time.Clock()
-
+def init_bean():
+    global _GAME_STATE
     sliderOffset = (screen.get_height() - (_NO_BEANS * 100)) / 2
     beanCounter = 0
     for bean in _BEANS:
-        AmountSlider(screen.get_width()-375, sliderOffset + (beanCounter * 100), 375, 87, bean, "red", beanCounter)
+        AmountSlider(screen.get_width() - 375, sliderOffset + (beanCounter * 100), 375, 87, bean, "red", beanCounter)
         beanCounter += 1
 
     beanCounter = 0
@@ -269,47 +255,52 @@ def game_loop():
     Button(screen.get_width() / 2 - 300, screen.get_height() / 4, 200, 100, 'BEAN', deal)
     Button(screen.get_width() / 2 + 100, screen.get_height() / 4, 200, 100, 'NO BEAN', no_deal)
 
-    bg_image = p.image.load('assets/background.jpg')
-    logo = p.image.load('assets/logo.png')
     play_sound_effect('assets/ambience.mp3')
+    _GAME_STATE = 'BEAN'
+    game_loop(ParticleEmitter(1, 0.1))
 
-    particles = ParticleEmitter(1, 0.1)
-    particleEvent = p.USEREVENT + 1
+def game_loop(
+        particles = ParticleEmitter(2, 0.05),
+        particleEvent = p.USEREVENT + 1,
+        background = Background()
+):
+    clock = p.time.Clock()
     p.time.set_timer(particleEvent, 40)
 
-    running = True
-    while running:
+    gameState = _GAME_STATE
+    while gameState == _GAME_STATE:
         for event in p.event.get():
             if event.type == p.QUIT:
                 quit()
             if event.type == particleEvent:
-                particles.add_particles()
+                particles.spawn()
 
-        screen.blit(p.transform.scale(bg_image, (screen.get_width(), screen.get_height())), (0, 0))
-        screen.blit(logo, ((screen.get_width() / 2) - (logo.get_width() / 2), (screen.get_height() / 2) - (logo.get_height() / 4)))
-
-        particles.emit()
+        background.process()
+        particles.process()
 
         for object in _OBJECTS:
             object.process()
 
-        decision_music()
-        wizard_rings()
+        if _GAME_STATE == 'BEAN':
+            decision_music()
+            wizard_rings()
 
         p.display.flip()
 
         clock.tick(60)
 
+    _OBJECTS.clear()
+
 def game_init():
     p.init()
     m.init()
 
-    holding_screen()
+    init_holding()
 
     if not _SKIP_INTRO:
         intro()
 
-    game_loop()
+    init_bean()
     p.quit()
 
 if __name__ == '__main__':
