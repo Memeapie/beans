@@ -234,6 +234,86 @@ class AmountSlider:
             screen.blit(self.sliderImage, self.sliderRect)
             screen.blit(self.sliderText, self.sliderTextRect)
 
+class FireworkParticle:
+
+    def __init__(self, pos, colour, direction, velocity, size, lifetime,
+                 hasTrail=False, shrink=False,
+                 trailColour=None, trailPercent=0.4, gravity=0.005):
+        self.pos = [float(pos[0]), float(pos[1])]
+        self.colour = colour
+        self.direction = direction
+        self.velocity = velocity
+        self.size = size
+        self.hasTrail = hasTrail
+        self.lifetime = lifetime
+        self.age = 0
+        self.shrink = shrink
+        self.gravity = gravity
+
+        self.surface = p.Surface((size, size))
+        self.surface.fill(self.colour)
+
+        if hasTrail and rnd.uniform(0, 1) < trailPercent:
+            self.spawn_trail(trailColour)
+
+        _OBJECTS.append(self)
+
+    def process(self):
+        for axis in (0, 1):
+            self.pos[axis] += self.direction[axis] * self.velocity * 0.5
+        self.direction[1] += self.gravity * 0.5
+        self.age += 0.1
+        if self.age > self.lifetime:
+            self.die()
+            return
+
+        if self.shrink:
+            newSurfSize = self.size*(1 - self.age/self.lifetime)
+            self.surface = p.Surface((newSurfSize, newSurfSize))
+            self.surface.fill(self.colour)
+        screen.blit(self.surface, self.pos)
+
+    def die(self):
+        if self in _OBJECTS:
+            _OBJECTS.remove(self)
+
+    def spawn_trail(self, trailColour):
+        FireworkParticle(self.pos, trailColour, self.direction, self.velocity*2, self.size*0.25, lifetime=self.lifetime*2.5)
+
+class Firework:
+    def __init__(self, pos, colour, velocity, particleSize, sparsity, hasTrail, lifetime):
+        # sparsity is between 0 and 1, higher values mean fewer particles
+        trailColour = [rnd.uniform(0, 255),
+                       rnd.uniform(0, 255),
+                       rnd.uniform(0, 255)]
+        xDir = -0.5
+        while xDir <= 0.5:
+            yDir = -0.5
+            while yDir <= 0.5:
+                if xDir == yDir == 0:
+                    continue
+                if (xDir * xDir + yDir * yDir) <= 0.5*0.5:
+                    FireworkParticle(pos=pos,
+                             colour=colour,
+                             direction=[xDir, yDir],
+                             velocity=velocity + rnd.uniform(-2, 2),
+                             size=particleSize,
+                             hasTrail=hasTrail,
+                             lifetime=lifetime + rnd.uniform(-3, 3),
+                             shrink=True,
+                             trailColour=trailColour)
+                yDir += sparsity
+            xDir += sparsity
+
+def spawn_firework(pos_x, pos_y):
+    Firework(pos=(pos_x, pos_y),
+             colour=[rnd.uniform(0, 255), rnd.uniform(0, 255), rnd.uniform(0, 255)],
+             velocity=rnd.uniform(40, 60),
+             particleSize=rnd.uniform(10, 15),
+             sparsity=rnd.uniform(0.05, 0.15),
+             hasTrail=True,
+             lifetime=rnd.uniform(10, 20))
+
 def intro():
     clip = e.VideoFileClip('assets/intro_video.mp4')
 
@@ -247,6 +327,7 @@ def ready_up():
     _GAME_STATE = 'BEAN'
 
 def init_holding():
+    spawn_firework(screen.get_width() / 2, screen.get_height() / 2)
     Button(screen.get_width() / 2 - 100, screen.get_height() / 2 - 50, 200, 100, 'Ready!', ready_up)
     game_loop()
 
@@ -270,6 +351,9 @@ def play_sound_effect(sound_effect, loop = 0):
 def deal():
     global _BEAN_OR_NO_BEAN
     _BEAN_OR_NO_BEAN = False
+    spawn_firework(screen.get_width() / 2, screen.get_height() / 2)
+    spawn_firework(screen.get_width() / 4, (screen.get_width() / 4) * 3)
+    spawn_firework((screen.get_width() / 4) * 3, (screen.get_width() / 4) * 3)
     play_sound_effect("assets/deal.mp3")
 
 def no_deal():
@@ -346,7 +430,6 @@ def game_loop(
         p.display.flip()
 
         clock.tick(60)
-        print(clock.get_fps())
 
     _OBJECTS.clear()
 
