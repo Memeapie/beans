@@ -1,7 +1,7 @@
 _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
 _OBJECTS = []
-_NO_BEANS = 9
+_NO_BEANS = 11
 _BEANS = ["1", "2", "5", "8", "13", "21", "36", "55", "100", "200", "500"]
 _DECISION_MUSIC_COOLDOWN = 0
 _BEANS_REMOVED = 0
@@ -30,7 +30,8 @@ class FadingBeanBox:
         self.y = 0
         self.direction = 1
         self.alpha = 100
-        self.image = p.image.load('assets/Logo-Large.png')
+        self.image = p.image.load('assets/Logo-Large.png').convert_alpha()
+        self.image.set_alpha(self.alpha)
 
         _OBJECTS.append(self)
 
@@ -39,11 +40,14 @@ class FadingBeanBox:
 
         if self.x > (self.width / 2) and self.direction == 1:
             self.alpha -= 1
+            self.image.set_alpha(self.alpha)
         if self.x < (screen.get_width() - self.width*2) and self.direction == -1:
             self.alpha -= 1
+            self.image.set_alpha(self.alpha)
 
         if self.alpha == 0:
             self.alpha = 100
+            self.image.set_alpha(self.alpha)
             if self.direction == 1:
                 self.direction = -1
                 self.x = screen.get_width() + 1000
@@ -51,14 +55,13 @@ class FadingBeanBox:
                 self.direction = 1
                 self.x = -1500
 
-        self.image.set_alpha(self.alpha)
         screen.blit(self.image, (self.x, self.y))
 
 class BeanBox:
     def __init__(self, x, y, width, height):
         self.x = x - (width / 2)
         self.y = y - (height / 2)
-        self.image = p.transform.scale(p.image.load('assets/Logo-Large.png'), (width, height))
+        self.image = p.transform.scale(p.image.load('assets/Logo-Large.png'), (width, height)).convert_alpha()
 
         _OBJECTS.append(self)
 
@@ -179,7 +182,7 @@ class AmountSlider:
         self.animationTimer = -1
         self.state = "hiya"
 
-        self.sliderImage = p.image.load("assets/" + self.bean + "-" + self.iteration + ".png")
+        self.sliderImage = p.image.load("assets/" + self.bean + "-" + self.iteration + ".png").convert_alpha()
         self.sliderRect = p.Rect(self.x, self.y, self.width, self.height)
         self.sliderText = font.render(self.amount + " BEAN", True, (255, 255, 255))
         self.fontSizeWidth, self.fontSizeHeight = font.size(self.amount + " BEAN")
@@ -292,7 +295,7 @@ def wizard_rings():
 def init_bean():
     global _GAME_STATE
 
-    FadingBeanBox(526, 526)
+    FadingBeanBox(412, 412)
     BeanBox(screen.get_width() / 2, screen.get_height() / 2, 256, 256)
 
     sliderOffset = (screen.get_height() - (len(_BEANS) * 100)) / 2
@@ -320,7 +323,7 @@ def game_loop(
         background = Background()
 ):
     clock = p.time.Clock()
-    p.time.set_timer(particleEvent, 20)
+    p.time.set_timer(particleEvent, 30)
 
     gameState = _GAME_STATE
     while gameState == _GAME_STATE:
@@ -343,6 +346,7 @@ def game_loop(
         p.display.flip()
 
         clock.tick(60)
+        print(clock.get_fps())
 
     _OBJECTS.clear()
 
