@@ -305,6 +305,25 @@ class Firework:
                 yDir += sparsity
             xDir += sparsity
 
+class Bean:
+    def __init__(self, bean):
+        self.x = screen.get_width() / 2
+        self.y = screen.get_height() / 2
+        self.animationTimer = 200
+        self.image = p.image.load('assets/'+ bean +'.png').convert_alpha()
+        self.x -= self.image.get_width() / 2
+
+        _OBJECTS.append(self)
+
+    def process(self):
+        self.y -= 1
+        self.animationTimer -= 1
+        self.image.set_alpha(self.animationTimer)
+        screen.blit(self.image, (self.x, self.y))
+
+        if self.animationTimer == 0:
+            _OBJECTS.remove(self)
+
 def spawn_firework(pos_x, pos_y):
     Firework(pos=(pos_x, pos_y),
              colour=[rnd.uniform(0, 255), rnd.uniform(0, 255), rnd.uniform(0, 255)],
@@ -355,10 +374,12 @@ def deal():
     spawn_firework(screen.get_width() / 4, (screen.get_width() / 4) * 3)
     spawn_firework((screen.get_width() / 4) * 3, (screen.get_width() / 4) * 3)
     play_sound_effect("assets/deal.mp3")
+    Bean("bean")
 
 def no_deal():
     global _BEAN_OR_NO_BEAN
     _BEAN_OR_NO_BEAN = False
+    Bean("no_bean")
 
 def wizard_rings():
     global _BEANS_REMOVED, _LAST_WIZARD_CALL, _DECISION_MUSIC_COOLDOWN, _WIZARD_SUMMONED, _BEAN_OR_NO_BEAN
