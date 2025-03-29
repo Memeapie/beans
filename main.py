@@ -2,7 +2,7 @@ _GAME_FULLSCREEN = False
 _SKIP_INTRO = True
 _OBJECTS = []
 _NO_BEANS = 9
-_BEANS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+_BEANS = ["1", "2", "5", "8", "13", "21", "36", "55", "100", "200", "500"]
 _DECISION_MUSIC_COOLDOWN = 0
 _BEANS_REMOVED = 0
 _LAST_WIZARD_CALL = 0
@@ -69,6 +69,10 @@ class Background:
     def __init__(self):
         self.circleColours = [(8,8,8), (16,16,16), (24,24,24), (32,32,32), (40,40,40), (48,48,48), (56,56,56), (64,64,64), (72,72,72), (80,80,80)]
         self.surface = p.Surface(screen.get_size(), p.SRCALPHA, 32)
+        self.res = screen.get_size()
+        self.render()
+
+    def render(self):
         iterations = len(self.circleColours)
         nextFrame = p.Surface(screen.get_size(), p.SRCALPHA, 32)
         for colour in self.circleColours:
@@ -78,6 +82,9 @@ class Background:
         self.surface = p.transform.box_blur(nextFrame, 15)
 
     def process(self):
+        if not self.res == screen.get_size():
+            self.res = screen.get_size()
+            self.render()
         screen.fill('Black')
         screen.blit(self.surface, (0,0))
 
@@ -288,12 +295,13 @@ def init_bean():
     FadingBeanBox(526, 526)
     BeanBox(screen.get_width() / 2, screen.get_height() / 2, 256, 256)
 
-    sliderOffset = (screen.get_height() - (_NO_BEANS * 100)) / 2
+    sliderOffset = (screen.get_height() - (len(_BEANS) * 100)) / 2
     beanCounter = 0
     for bean in _BEANS:
         AmountSlider(screen.get_width() - 375, sliderOffset + (beanCounter * 100), 375, 87, bean, "red", beanCounter)
         beanCounter += 1
 
+    sliderOffset = (screen.get_height() - (_NO_BEANS * 100)) / 2
     beanCounter = 0
     while not (beanCounter == _NO_BEANS):
         AmountSlider(0, sliderOffset + (beanCounter * 100), 375, 87, "NO", "blue", beanCounter)
